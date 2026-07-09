@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.sqlite3
+staticfiles/
+media/
+
+# Node
+node_modules/
+.next/
+npm-debug.log*
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store
