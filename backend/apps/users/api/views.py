@@ -19,6 +19,7 @@ from apps.users.application.services import (
 from apps.users.infrastructure.django.google_oauth import verify_google_id_token
 from apps.users.infrastructure.django.models import User
 from apps.users.infrastructure.django.repositories import DjangoUserRepository
+from apps.users.tasks import send_welcome_email_task
 
 _repository = DjangoUserRepository()
 
@@ -59,6 +60,7 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
         service = RegistrationService(repository=_repository)
         entity = service.register(**serializer.validated_data)
+        send_welcome_email_task.delay(str(entity.id))
         return _auth_response(entity)
 
 

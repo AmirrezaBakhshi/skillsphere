@@ -37,6 +37,9 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.google",
     # local apps
     "apps.users",
+    "apps.activity",
+    "apps.notifications",
+    "apps.projects",
 ]
 
 SITE_ID = 1
@@ -51,6 +54,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.activity.infrastructure.django.middleware.ActivityLoggingMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -138,6 +142,33 @@ CELERY_RESULT_BACKEND = env("REDIS_URL", default="redis://redis:6379/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
+# In tests/local dev without a running worker, tasks execute synchronously
+# in-process instead of being queued - flip to False once you have a
+# worker running (docker compose runs one automatically).
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@skillsphere.local")
+
+# File upload validation (Stage 2: File Upload & Download). Enforced in
+# apps.projects.application.services.UploadProjectService.
+PROJECT_UPLOAD_MAX_SIZE_BYTES = env.int(
+    "PROJECT_UPLOAD_MAX_SIZE_BYTES", default=25 * 1024 * 1024
+)
+PROJECT_UPLOAD_ALLOWED_CONTENT_TYPES = tuple(
+    env.list(
+        "PROJECT_UPLOAD_ALLOWED_CONTENT_TYPES",
+        default=[
+            "application/pdf",
+            "application/zip",
+            "application/x-zip-compressed",
+            "image/png",
+            "image/jpeg",
+        ],
+    )
+)
 
 GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="")

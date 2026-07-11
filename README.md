@@ -17,6 +17,51 @@ Not yet implemented (later stages): file upload, notifications, Celery
 background tasks, activity-tracking middleware, Elasticsearch search,
 dashboards/analytics, real-time chat, and Nginx.
 
+## Stage 2 — Background tasks, notifications, activity tracking, file upload
+
+**New apps:** `projects` (file upload/download with validation + background
+processing), `notifications` (in-app + email notifications), `activity`
+(per-request activity logging middleware).
+
+**Celery + Redis** now actually run background work: after registration, a
+welcome email + notification are sent via a Celery task; after a project
+upload, a Celery task checksums the file and flips its status from
+`pending` → `processing` → `ready` (or `rejected` on failure), notifying
+the owner either way.
+
+Still not implemented (later stages): Elasticsearch search, dashboards/
+analytics, real-time chat/collaboration, Nginx.
+
+### Running Stage 2 with Docker Compose
+
+Same as before, but there's now a `celery_worker` service — `docker compose
+up --build` starts it automatically alongside everything else. No extra
+steps needed.
+
+### API reference (Stage 2 additions)
+
+Base URL: `/api/v1/`
+
+| Method | Path | Auth | Body / Query | Notes |
+|---|---|---|---|---|
+| POST | `projects/upload/` | Bearer | multipart: `title, description?, file` | 201 with the project (status `pending`); 422 if the file fails validation |
+| GET | `projects/mine/` | Bearer | — | Lists only the caller's own projects |
+| GET | `projects/<uuid>/download/` | Bearer | — | 404 if the project isn't yours |
+| GET | `notifications/` | Bearer | `?unread=true` optional | Lists the caller's notifications |
+| POST | `notifications/<id>/read/` | Bearer | — | Marks one notification read; 404 if it's not yours |
+| GET | `activity/me/` | Bearer | — | The caller's own recent activity log |
+
+File upload defaults: 25 MB max, allowed types `application/pdf`,
+`application/zip`, `application/x-zip-compressed`, `image/png`,
+`image/jpeg` — both configurable via `PROJECT_UPLOAD_MAX_SIZE_BYTES` /
+`PROJECT_UPLOAD_ALLOWED_CONTENT_TYPES` in `backend/.env`.
+
+Emails are printed to the console by default (`EMAIL_BACKEND` = Django's
+console backend) — no real SMTP setup needed for local dev. Point
+`EMAIL_BACKEND` at a real backend (e.g. SMTP or a provider's API) before
+deploying anywhere real users will see it. See the **Tests** section below
+for how to run the suite (15 tests total across Stage 1 + Stage 2).
+
 ## Architecture
 
 The `users` app follows ports & adapters:
@@ -76,8 +121,11 @@ npm run dev
 
 ```bash
 cd backend
-pytest
+DATABASE_URL=sqlite:///test.sqlite3 CELERY_TASK_ALWAYS_EAGER=True pytest
 ```
+
+(Point `DATABASE_URL` at your real Postgres and drop `CELERY_TASK_ALWAYS_EAGER`
+if you'd rather run against the full stack with a live worker.)
 
 ## API reference (Stage 1)
 

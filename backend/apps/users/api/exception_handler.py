@@ -7,11 +7,16 @@ from apps.users.domain.exceptions import (
     UserAlreadyExistsError,
     UserNotFoundError,
 )
+from apps.notifications.domain.exceptions import NotificationNotFoundError
+from apps.projects.domain.exceptions import InvalidFileError, ProjectNotFoundError
 
 _DOMAIN_ERROR_STATUS = {
     UserAlreadyExistsError: status.HTTP_409_CONFLICT,
     InvalidCredentialsError: status.HTTP_401_UNAUTHORIZED,
     UserNotFoundError: status.HTTP_404_NOT_FOUND,
+    NotificationNotFoundError: status.HTTP_404_NOT_FOUND,
+    ProjectNotFoundError: status.HTTP_404_NOT_FOUND,
+    InvalidFileError: status.HTTP_422_UNPROCESSABLE_ENTITY,
 }
 
 
