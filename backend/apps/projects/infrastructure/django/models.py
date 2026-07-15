@@ -28,6 +28,7 @@ class Project(models.Model):
     file_size = models.PositiveIntegerField()
     content_type = models.CharField(max_length=100)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    download_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

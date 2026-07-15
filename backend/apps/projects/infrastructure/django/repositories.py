@@ -58,5 +58,6 @@ class DjangoProjectRepository(ProjectRepository):
             file_size=project.file_size,
             content_type=project.content_type,
             status=project.status,
+            download_count=project.download_count,
             created_at=project.created_at,
         )

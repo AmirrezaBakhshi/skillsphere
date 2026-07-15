@@ -15,4 +15,5 @@ class ProjectEntity:
     file_size: int
     content_type: str
     status: str  # "pending" | "processing" | "ready" | "rejected"
+    download_count: int = 0
     created_at: datetime | None = None

@@ -60,7 +60,51 @@ Emails are printed to the console by default (`EMAIL_BACKEND` = Django's
 console backend) — no real SMTP setup needed for local dev. Point
 `EMAIL_BACKEND` at a real backend (e.g. SMTP or a provider's API) before
 deploying anywhere real users will see it. See the **Tests** section below
-for how to run the suite (15 tests total across Stage 1 + Stage 2).
+for how to run the suite (19 tests total across Stage 1 + 2 + 3).
+
+## Stage 3 — Dashboards, analytics, and real frontend pages
+
+**New backend app:** `analytics` — a read-model ("reporting") layer that
+aggregates data across `projects`, `notifications`, and `activity` into
+two endpoints: a per-user dashboard and an admin-only system-wide
+dashboard. Projects also gained a `download_count`, incremented
+atomically each time a file is downloaded.
+
+**New frontend:** the placeholder dashboard from Stage 1 is now a real
+page — stat cards + a 14-day activity line chart (Recharts). Two brand
+new pages: `/projects` (drag-and-drop upload, live status badges,
+download) and `/notifications` (list, unread filter, mark-read). A shared
+sidebar (`AppShell`) ties them together with a dark mode toggle
+(persisted, respects OS preference on first load).
+
+Still not implemented (later stages): Elasticsearch search, real-time
+chat/collaboration, AI recommendations, Nginx.
+
+### API reference (Stage 3 additions)
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `dashboard/me/` | Bearer | Project counts by status, total downloads, unread notifications, 14-day activity trend |
+| GET | `dashboard/admin/` | Bearer + staff | System-wide totals, signups/requests trend, top 5 most active users |
+
+`dashboard/admin/` returns 403 for any non-staff user — make an account
+staff via `/admin/` or `DJANGO_SUPERUSER_*` in `.env`.
+
+### A note on the `analytics` app's design
+
+Unlike `users`/`notifications`/`projects` (each of which only reads/writes
+its own table), `analytics` deliberately reads across all of them in one
+place. This is a common, intentional exception in hexagonal/DDD codebases
+— a **CQRS-style read model** — rather than a layering mistake. See
+`DOCUMENTATION_STAGE3.md` for the full reasoning.
+
+### Known follow-up item
+
+`npm audit` currently flags a few moderate/high severity advisories in
+Next.js 14.2.35 (the latest available 14.x patch) that are only fixed by
+upgrading to Next 15/16, a breaking change out of scope for this stage.
+Worth revisiting before any real deployment — see `npm audit` output in
+`frontend/` for specifics.
 
 ## Architecture
 

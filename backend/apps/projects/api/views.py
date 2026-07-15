@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.db.models import F
 from django.http import FileResponse
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -12,6 +13,7 @@ from apps.projects.application.services import (
     ListMyProjectsService,
     UploadProjectService,
 )
+from apps.projects.infrastructure.django.models import Project
 from apps.projects.infrastructure.django.repositories import DjangoProjectRepository
 from apps.projects.tasks import process_uploaded_project_task
 
@@ -71,4 +73,5 @@ class ProjectDownloadView(APIView):
     def get(self, request, project_id):
         service = GetProjectForDownloadService(repository=_repository)
         file_path = service.get_file_path(project_id=project_id, owner_id=request.user.id)
+        Project.objects.filter(id=project_id).update(download_count=F("download_count") + 1)
         return FileResponse(open(file_path, "rb"), as_attachment=True)

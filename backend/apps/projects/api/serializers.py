@@ -15,4 +15,5 @@ class ProjectSerializer(serializers.Serializer):
     file_size = serializers.IntegerField()
     content_type = serializers.CharField()
     status = serializers.CharField()
+    download_count = serializers.IntegerField()
     created_at = serializers.DateTimeField()
