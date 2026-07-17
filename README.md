@@ -60,7 +60,7 @@ Emails are printed to the console by default (`EMAIL_BACKEND` = Django's
 console backend) — no real SMTP setup needed for local dev. Point
 `EMAIL_BACKEND` at a real backend (e.g. SMTP or a provider's API) before
 deploying anywhere real users will see it. See the **Tests** section below
-for how to run the suite (19 tests total across Stage 1 + 2 + 3).
+for how to run the suite (24 tests total across Stage 1 + 2 + 3 + 4).
 
 ## Stage 3 — Dashboards, analytics, and real frontend pages
 
@@ -105,6 +105,66 @@ Next.js 14.2.35 (the latest available 14.x patch) that are only fixed by
 upgrading to Next 15/16, a breaking change out of scope for this stage.
 Worth revisiting before any real deployment — see `npm audit` output in
 `frontend/` for specifics.
+
+## Stage 4 — Search (Elasticsearch)
+
+**New backend app:** `search` — indexes projects (title, description,
+tags, owner) and users (username, bio) into Elasticsearch, and exposes
+two public search endpoints. Projects also gained a `Tag` model
+(many-to-many) so uploads can be tagged, and tags are searchable.
+
+**Indexing is automatic and asynchronous:** a project gets indexed the
+moment its background processing finishes (`status: "ready"`) — not at
+upload time, so half-processed or rejected uploads never show up in
+search. A user gets indexed right after registration or their first
+Google sign-in. Both happen via Celery tasks (`apps/search/tasks.py`),
+never inline in a request.
+
+**New frontend:** a public `/search` page (debounced input, no login
+required) searching both projects and people at once. The `/projects`
+upload form gained a tags field.
+
+Still not implemented (later stage): real-time chat/collaboration, AI
+recommendations, Nginx.
+
+### Running Stage 4 with Docker Compose
+
+Same as before — `docker compose up --build` now also starts an
+`elasticsearch` container automatically. First boot takes a little longer
+while Elasticsearch initializes.
+
+If you had projects/users created *before* adding Stage 4 (i.e. you did
+Stage 1–3 first), backfill the search index once with:
+
+```bash
+docker compose exec backend python manage.py reindex_search
+```
+
+New records after that index themselves automatically — this command is
+only needed for historical backfill.
+
+### API reference (Stage 4 additions)
+
+| Method | Path | Auth | Query | Notes |
+|---|---|---|---|---|
+| GET | `search/projects/?q=...` | none (public) | `q` (required) | Only returns projects with status `ready`; empty `q` returns `[]` |
+| GET | `search/users/?q=...` | none (public) | `q` (required) | Matches username/bio |
+
+Both return `503 {"detail": "Search is temporarily unavailable"}` if
+Elasticsearch can't be reached, rather than a 500 — a search outage
+degrades gracefully instead of looking like an application bug.
+
+### A note on testing this stage
+
+Elasticsearch isn't spun up as part of the automated test suite — the
+`search` app's own tests (`apps/search/tests/`) verify the actual business
+logic (matching, tag search, filtering out non-`ready` projects) against
+an **in-memory fake** implementing the same `ProjectSearchPort`/
+`UserSearchPort` interfaces the real Elasticsearch adapter implements.
+This is the hexagonal architecture's testability payoff in action — see
+`DOCUMENTATION_STAGE4.md` for the full explanation, including how to
+manually verify the real Elasticsearch integration once you have
+`docker compose` running.
 
 ## Architecture
 

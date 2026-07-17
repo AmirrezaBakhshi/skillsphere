@@ -19,6 +19,7 @@ class ProjectRepository(ABC):
         file_name: str,
         file_size: int,
         content_type: str,
+        tags: list[str] = (),
     ) -> ProjectEntity:
         ...
 

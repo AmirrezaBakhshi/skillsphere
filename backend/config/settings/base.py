@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.projects",
     "apps.analytics",
+    "apps.search",
 ]
 
 SITE_ID = 1
@@ -173,3 +174,5 @@ PROJECT_UPLOAD_ALLOWED_CONTENT_TYPES = tuple(
 
 GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="")
+
+ELASTICSEARCH_URL = env("ELASTICSEARCH_URL", default="http://elasticsearch:9200")

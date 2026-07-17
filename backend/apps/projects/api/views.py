@@ -28,6 +28,7 @@ class ProjectUploadView(APIView):
         serializer = ProjectUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         uploaded_file = serializer.validated_data["file"]
+        tags = [t for t in serializer.validated_data.get("tags", "").split(",") if t.strip()]
 
         service = UploadProjectService(
             repository=_repository,
@@ -42,6 +43,7 @@ class ProjectUploadView(APIView):
             file_name=uploaded_file.name,
             file_size=uploaded_file.size,
             content_type=uploaded_file.content_type,
+            tags=tags,
         )
 
         # Background: checksum/validate the stored file, then flip status

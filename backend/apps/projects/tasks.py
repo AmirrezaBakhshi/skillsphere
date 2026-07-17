@@ -50,3 +50,7 @@ def process_uploaded_project_task(self, project_id):
         message=f"'{project.title}' finished processing and is ready (checksum {checksum[:12]}...).",
         level="success",
     )
+
+    from apps.search.tasks import index_project_task
+
+    index_project_task.delay(str(project_id))

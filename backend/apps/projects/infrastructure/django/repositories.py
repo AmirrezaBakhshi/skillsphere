@@ -5,7 +5,7 @@ from uuid import UUID
 
 from apps.projects.domain.entities import ProjectEntity
 from apps.projects.domain.ports import ProjectRepository
-from apps.projects.infrastructure.django.models import Project
+from apps.projects.infrastructure.django.models import Project, Tag
 
 
 class DjangoProjectRepository(ProjectRepository):
@@ -19,6 +19,7 @@ class DjangoProjectRepository(ProjectRepository):
         file_name: str,
         file_size: int,
         content_type: str,
+        tags: list[str] = (),
     ) -> ProjectEntity:
         project = Project(
             owner_id=owner_id,
@@ -29,6 +30,15 @@ class DjangoProjectRepository(ProjectRepository):
             status="pending",
         )
         project.file.save(file_name, file, save=True)
+
+        if tags:
+            tag_objects = [
+                Tag.objects.get_or_create(name=name.strip().lower())[0]
+                for name in tags
+                if name.strip()
+            ]
+            project.tags.set(tag_objects)
+
         return self._to_entity(project)
 
     def get_for_owner(self, *, project_id: UUID, owner_id: UUID) -> ProjectEntity | None:
@@ -59,5 +69,6 @@ class DjangoProjectRepository(ProjectRepository):
             content_type=project.content_type,
             status=project.status,
             download_count=project.download_count,
+            tags=list(project.tags.values_list("name", flat=True)) if project.pk else [],
             created_at=project.created_at,
         )

@@ -5,6 +5,10 @@ class ProjectUploadSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     description = serializers.CharField(max_length=2000, required=False, allow_blank=True, default="")
     file = serializers.FileField()
+    tags = serializers.CharField(
+        max_length=300, required=False, allow_blank=True, default="",
+        help_text="Comma-separated, e.g. 'django,api,portfolio'",
+    )
 
 
 class ProjectSerializer(serializers.Serializer):
@@ -16,4 +20,5 @@ class ProjectSerializer(serializers.Serializer):
     content_type = serializers.CharField()
     status = serializers.CharField()
     download_count = serializers.IntegerField()
+    tags = serializers.ListField(child=serializers.CharField())
     created_at = serializers.DateTimeField()

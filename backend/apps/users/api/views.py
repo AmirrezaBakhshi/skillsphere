@@ -61,6 +61,11 @@ class RegisterView(APIView):
         service = RegistrationService(repository=_repository)
         entity = service.register(**serializer.validated_data)
         send_welcome_email_task.delay(str(entity.id))
+
+        from apps.search.tasks import index_user_task
+
+        index_user_task.delay(str(entity.id))
+
         return _auth_response(entity)
 
 
@@ -89,6 +94,11 @@ class GoogleLoginView(APIView):
             google_sub=google_profile.sub,
             username_hint=google_profile.email.split("@")[0],
         )
+
+        from apps.search.tasks import index_user_task
+
+        index_user_task.delay(str(entity.id))
+
         return _auth_response(entity)
 
 

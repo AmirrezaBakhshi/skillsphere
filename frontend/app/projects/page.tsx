@@ -25,6 +25,7 @@ export default function ProjectsPage() {
   const { user } = useAuthStore();
   const [projects, setProjects] = useState<Project[]>([]);
   const [title, setTitle] = useState("");
+  const [tags, setTags] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +46,9 @@ export default function ProjectsPage() {
     setError(null);
     setIsUploading(true);
     try {
-      await uploadProject({ title: title || file.name, file });
+      await uploadProject({ title: title || file.name, file, tags });
       setTitle("");
+      setTags("");
       loadProjects();
     } catch (err: any) {
       setError(err?.response?.data?.detail ?? "Upload failed - check the file type and size.");
@@ -77,6 +79,13 @@ export default function ProjectsPage() {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         className="focus-ring mt-6 w-full max-w-md rounded border border-line px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5 dark:text-paper"
+      />
+      <input
+        type="text"
+        placeholder="Tags, comma-separated (e.g. django, api, portfolio)"
+        value={tags}
+        onChange={(e) => setTags(e.target.value)}
+        className="focus-ring mt-2 w-full max-w-md rounded border border-line px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5 dark:text-paper"
       />
 
       <label
@@ -128,6 +137,18 @@ export default function ProjectsPage() {
                   {formatBytes(project.file_size)} · {project.download_count} download
                   {project.download_count === 1 ? "" : "s"}
                 </p>
+                {project.tags.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {project.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-signal_dim px-2 py-0.5 text-[11px] text-signal dark:bg-white/10 dark:text-paper/70"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">

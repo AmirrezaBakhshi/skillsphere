@@ -10,6 +10,18 @@ def project_upload_path(instance: "Project", filename: str) -> str:
     return f"projects/{instance.owner_id}/{instance.id}/{filename}"
 
 
+class Tag(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    class Meta:
+        app_label = "projects"
+        db_table = "projects_tag"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Project(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),
@@ -29,6 +41,7 @@ class Project(models.Model):
     content_type = models.CharField(max_length=100)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     download_count = models.PositiveIntegerField(default=0)
+    tags = models.ManyToManyField(Tag, related_name="projects", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

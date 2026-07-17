@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
@@ -16,4 +16,5 @@ class ProjectEntity:
     content_type: str
     status: str  # "pending" | "processing" | "ready" | "rejected"
     download_count: int = 0
+    tags: list[str] = field(default_factory=list)
     created_at: datetime | None = None

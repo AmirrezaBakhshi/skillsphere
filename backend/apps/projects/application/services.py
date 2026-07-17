@@ -41,6 +41,7 @@ class UploadProjectService:
         file_name: str,
         file_size: int,
         content_type: str,
+        tags: list[str] = (),
     ) -> ProjectEntity:
         if file_size > self.max_file_size_bytes:
             raise InvalidFileError(
@@ -57,6 +58,7 @@ class UploadProjectService:
             file_name=file_name,
             file_size=file_size,
             content_type=content_type,
+            tags=tags,
         )
 
 

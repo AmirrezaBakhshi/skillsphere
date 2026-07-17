@@ -9,6 +9,7 @@ export type Project = {
   content_type: string;
   status: "pending" | "processing" | "ready" | "rejected";
   download_count: number;
+  tags: string[];
   created_at: string;
 };
 
@@ -21,10 +22,12 @@ export async function uploadProject(payload: {
   title: string;
   description?: string;
   file: File;
+  tags?: string;
 }): Promise<Project> {
   const form = new FormData();
   form.append("title", payload.title);
   if (payload.description) form.append("description", payload.description);
+  if (payload.tags) form.append("tags", payload.tags);
   form.append("file", payload.file);
 
   const { data } = await api.post<Project>("/projects/upload/", form, {
