@@ -1,10 +1,12 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppShell } from "@/components/AppShell";
 import { fetchMyDashboard, UserDashboard } from "@/lib/dashboard";
+import { fetchRecommendations, ProjectRecommendation } from "@/lib/recommendations";
 import { useAuthStore } from "@/store/authStore";
 
 function StatCard({ label, value }: { label: string; value: number | string }) {
@@ -22,6 +24,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [stats, setStats] = useState<UserDashboard | null>(null);
+  const [recommendations, setRecommendations] = useState<ProjectRecommendation[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,6 +35,9 @@ export default function DashboardPage() {
     fetchMyDashboard()
       .then(setStats)
       .catch(() => setError("Couldn't load your dashboard right now."));
+    fetchRecommendations()
+      .then(setRecommendations)
+      .catch(() => setRecommendations([]));
   }, [user, router]);
 
   if (!user) return null;
@@ -83,6 +89,29 @@ export default function DashboardPage() {
             </p>
           )}
         </>
+      )}
+
+      {recommendations.length > 0 && (
+        <div className="mt-8">
+          <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-graphite dark:text-paper/50">
+            <Sparkles size={13} />
+            Recommended for you
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {recommendations.map((r) => (
+              <div
+                key={r.project_id}
+                className="rounded border border-line bg-white p-4 dark:border-white/10 dark:bg-white/5"
+              >
+                <p className="text-sm font-medium text-ink dark:text-paper">{r.title}</p>
+                <p className="mt-0.5 text-xs text-graphite dark:text-paper/50">
+                  by {r.owner_username}
+                </p>
+                <p className="mt-2 text-xs text-graphite dark:text-paper/60">{r.reason}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </AppShell>
   );

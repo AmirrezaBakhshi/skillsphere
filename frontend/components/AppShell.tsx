@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, LayoutDashboard, LogOut, Moon, Search, Sun, UploadCloud } from "lucide-react";
+import { Bell, LayoutDashboard, LogOut, MessageCircle, Moon, Search, Sun, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: UploadCloud },
   { href: "/search", label: "Search", icon: Search },
+  { href: "/chat", label: "Messages", icon: MessageCircle },
   { href: "/notifications", label: "Notifications", icon: Bell },
 ];
 

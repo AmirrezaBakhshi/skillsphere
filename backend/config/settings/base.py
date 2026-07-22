@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
+    "channels",
     # local apps
     "apps.users",
     "apps.activity",
@@ -42,6 +43,8 @@ INSTALLED_APPS = [
     "apps.projects",
     "apps.analytics",
     "apps.search",
+    "apps.chat",
+    "apps.recommendations",
 ]
 
 SITE_ID = 1
@@ -148,6 +151,11 @@ CELERY_RESULT_SERIALIZER = "json"
 # in-process instead of being queued - flip to False once you have a
 # worker running (docker compose runs one automatically).
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+# Even in eager mode, a background task's failure (including after
+# exhausting retries) must never bubble up into the code that called
+# .delay() - that's exactly how it behaves for real, with a real worker,
+# since .delay() only ever queues a task and returns immediately.
+CELERY_TASK_EAGER_PROPAGATES = False
 
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
@@ -176,3 +184,12 @@ GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="")
 
 ELASTICSEARCH_URL = env("ELASTICSEARCH_URL", default="http://elasticsearch:9200")
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [env("REDIS_URL", default="redis://redis:6379/0")],
+        },
+    }
+}

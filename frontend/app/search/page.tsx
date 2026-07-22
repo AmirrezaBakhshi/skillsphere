@@ -1,13 +1,17 @@
 "use client";
 
-import { SearchIcon, Tag as TagIcon, User as UserIcon } from "lucide-react";
+import { MessageCircle, SearchIcon, Tag as TagIcon, User as UserIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ProjectSearchResult, searchProjects, searchUsers, UserSearchResult } from "@/lib/search";
+import { useAuthStore } from "@/store/authStore";
 
 const DEBOUNCE_MS = 300;
 
 export default function SearchPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
   const [query, setQuery] = useState("");
   const [projects, setProjects] = useState<ProjectSearchResult[]>([]);
   const [users, setUsers] = useState<UserSearchResult[]>([]);
@@ -109,11 +113,22 @@ export default function SearchPage() {
             {users.map((u) => (
               <div
                 key={u.id}
-                className="rounded border border-line bg-white p-4 dark:border-white/10 dark:bg-white/5"
+                className="flex items-center justify-between rounded border border-line bg-white p-4 dark:border-white/10 dark:bg-white/5"
               >
-                <p className="text-sm font-medium text-ink dark:text-paper">@{u.username}</p>
-                {u.bio && (
-                  <p className="mt-0.5 text-sm text-graphite dark:text-paper/60">{u.bio}</p>
+                <div>
+                  <p className="text-sm font-medium text-ink dark:text-paper">@{u.username}</p>
+                  {u.bio && (
+                    <p className="mt-0.5 text-sm text-graphite dark:text-paper/60">{u.bio}</p>
+                  )}
+                </div>
+                {user && user.username !== u.username && (
+                  <button
+                    onClick={() => router.push(`/chat?with=${u.id}`)}
+                    className="focus-ring flex items-center gap-1.5 rounded border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:border-signal hover:text-signal dark:border-white/15 dark:text-paper/70"
+                  >
+                    <MessageCircle size={14} />
+                    Message
+                  </button>
                 )}
               </div>
             ))}

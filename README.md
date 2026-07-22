@@ -60,7 +60,7 @@ Emails are printed to the console by default (`EMAIL_BACKEND` = Django's
 console backend) — no real SMTP setup needed for local dev. Point
 `EMAIL_BACKEND` at a real backend (e.g. SMTP or a provider's API) before
 deploying anywhere real users will see it. See the **Tests** section below
-for how to run the suite (24 tests total across Stage 1 + 2 + 3 + 4).
+for how to run the suite (34 tests total across Stage 1–5).
 
 ## Stage 3 — Dashboards, analytics, and real frontend pages
 
@@ -166,7 +166,66 @@ This is the hexagonal architecture's testability payoff in action — see
 manually verify the real Elasticsearch integration once you have
 `docker compose` running.
 
+## Stage 5 — Real-time chat & AI-style recommendations
+
+**New backend apps:** `chat` (real-time 1:1 messaging over WebSockets,
+via Django Channels + a Redis-backed channel layer) and `recommendations`
+(a content-based project recommender using tag/description similarity).
+
+**Chat** uses the same short-lived access token as every other endpoint —
+WebSocket connections can't send a normal `Authorization` header from a
+browser, so the token travels as a query param
+(`ws://.../ws/chat/<id>/?token=<access_token>`) instead, validated by a
+custom Channels middleware. Message history is also available over plain
+REST (used to load the backlog when a chat first opens, and as a
+non-WebSocket fallback).
+
+**Recommendations** is deliberately *not* a trained ML model — it's an
+explainable, testable content-based scorer (shared tags + description
+word overlap) with a "popular right now" fallback for new users with no
+projects yet. See `DOCUMENTATION_STAGE5.md` for why this approach was
+chosen over an embeddings/LLM-based system for this stage.
+
+**New frontend:** a `/chat` page (conversation list + a real-time thread
+using a native WebSocket), a "Message" button on user search results, and
+a "Recommended for you" section on the dashboard.
+
+Still not implemented (next stage): Nginx / production deployment
+hardening.
+
+### Running Stage 5 with Docker Compose
+
+No new services — Channels reuses Redis (already running from Stage 2)
+as its channel layer backend. `docker compose up --build` picks up chat
+and recommendations automatically. WebSocket support works out of the
+box in dev because Django Channels replaces the `runserver` command with
+an ASGI-capable one the moment `channels` is in `INSTALLED_APPS` — no
+separate WebSocket server or extra command needed for local development.
+
+### API reference (Stage 5 additions)
+
+| Method / Protocol | Path | Auth | Notes |
+|---|---|---|---|
+| POST | `chat/start/` | Bearer | `{other_user_id}` — idempotent: returns the existing 1:1 conversation if one already exists |
+| GET | `chat/mine/` | Bearer | Lists the caller's conversations, each with its last message |
+| GET | `chat/<uuid>/messages/?before_id=` | Bearer | Message history, newest-`before_id` pagination |
+| POST | `chat/<uuid>/messages/` | Bearer | REST fallback for sending a message (same validation as the WebSocket path) |
+| WS | `ws/chat/<uuid>/?token=<access>` | token query param | Real-time send/receive; closes with 4001 (no/invalid token) or 4003 (not a participant) |
+| GET | `recommendations/projects/` | Bearer | Up to 5 recommended projects, or popularity-based picks for a brand-new account |
+
+### A note on testing WebSockets
+
+The chat consumer is tested with Channels' own `WebsocketCommunicator` —
+two simulated clients connect, exchange a message, and the test asserts
+both sides receive it. This genuinely needs a working Redis instance
+(unlike the Stage 4 search tests, which get away with an in-memory fake) —
+Channels' group-broadcast mechanism *is* Redis, there's no meaningful way
+to fake it. If you run these tests yourself outside Docker, make sure
+Redis is reachable at whatever `REDIS_URL` your test environment uses.
+
 ## Architecture
+
+
 
 The `users` app follows ports & adapters:
 
@@ -225,11 +284,17 @@ npm run dev
 
 ```bash
 cd backend
-DATABASE_URL=sqlite:///test.sqlite3 CELERY_TASK_ALWAYS_EAGER=True pytest
+DATABASE_URL=sqlite:///test.sqlite3 CELERY_TASK_ALWAYS_EAGER=True REDIS_URL=redis://localhost:6379/0 pytest
 ```
 
-(Point `DATABASE_URL` at your real Postgres and drop `CELERY_TASK_ALWAYS_EAGER`
-if you'd rather run against the full stack with a live worker.)
+(Point `DATABASE_URL` at your real Postgres and drop
+`CELERY_TASK_ALWAYS_EAGER` if you'd rather run against the full stack
+with a live worker. `REDIS_URL` needs to point at a real, reachable Redis
+— the chat app's WebSocket tests use Django Channels' actual group
+broadcast mechanism, which is backed by Redis and can't be faked the way
+Stage 4's search tests fake Elasticsearch. `docker compose`'s `redis`
+service works fine as the target if you're running tests from inside a
+container on the same network; otherwise point it at any local Redis.)
 
 ## API reference (Stage 1)
 
