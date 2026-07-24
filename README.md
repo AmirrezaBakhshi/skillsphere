@@ -223,9 +223,76 @@ Channels' group-broadcast mechanism *is* Redis, there's no meaningful way
 to fake it. If you run these tests yourself outside Docker, make sure
 Redis is reachable at whatever `REDIS_URL` your test environment uses.
 
+## Stage 6 — Production deployment (Nginx, TLS, hardened settings)
+
+**New:** `docker-compose.prod.yml`, `nginx/`, `backend/config/settings/prod.py`,
+`backend/entrypoint.prod.sh`, `frontend/Dockerfile.prod`. This stage
+doesn't add product features — it's what turns everything from Stages
+1–5 into something you could actually point a real domain at.
+
+**Nginx** sits in front of everything as the only container with ports
+published to the host (80 → redirects to 443; 443 does TLS termination).
+It reverse-proxies `/api/` and `/admin/` to the Django/Daphne backend,
+`/ws/` to the same backend with the special headers a WebSocket upgrade
+needs, `/static/` and `/media/` directly off a shared volume (bypassing
+Django entirely for serving file bytes), and everything else to the
+Next.js frontend.
+
+**`config/settings/prod.py`** layers production-only settings on top of
+`base.py`: `DEBUG=False`, HSTS, secure cookies, `SECURE_SSL_REDIRECT`,
+WhiteNoise for static files, and — deliberately — no defaults for
+`ALLOWED_HOSTS`/`CORS_ALLOWED_ORIGINS`, so a misconfigured production
+deployment fails loudly at startup instead of silently running insecurely.
+
+**The production server is Daphne, not Gunicorn** — Gunicorn's default
+worker only speaks WSGI (plain request/response) and can't handle a
+WebSocket upgrade at all. Since Stage 5 added real-time chat over
+Channels, the production server has to speak ASGI end to end.
+
+**The frontend** now has a real multi-stage production Dockerfile
+(`Dockerfile.prod`) using Next.js's `output: "standalone"` build — a
+minimal, self-contained server bundle, not the full dev toolchain.
+
+### Deploying with Stage 6
+
+```bash
+cp backend/.env.prod.example backend/.env.prod
+# fill in every value in backend/.env.prod - see the comments in that
+# file; nothing has an insecure fallback default in production
+
+# get a TLS cert (see nginx/certs/README.txt) and place it at:
+#   nginx/certs/fullchain.pem
+#   nginx/certs/privkey.pem
+
+docker compose -f docker-compose.prod.yml --env-file backend/.env.prod up --build
+```
+
+Only ports 80 and 443 are published to the host — Postgres, Redis,
+Elasticsearch, the Django backend, and the Next.js frontend are all only
+reachable from other containers on the internal Docker network, not from
+the outside world directly.
+
+### Verifying the production settings are actually hardened
+
+```bash
+docker compose -f docker-compose.prod.yml exec backend python manage.py check --deploy
+```
+
+Django's own `--deploy` check flags anything still insecure (a weak
+`SECRET_KEY`, `SECURE_SSL_REDIRECT` not set, etc.) — it should report
+zero issues once `backend/.env.prod` is filled in properly.
+
+### What's genuinely NOT covered by this stage
+
+This gets you a real, working, reasonably-secured single-server
+deployment — it does **not** cover horizontal scaling (multiple backend
+replicas behind a load balancer), automated zero-downtime deployments,
+database backups/replication, or a managed TLS renewal pipeline (Let's
+Encrypt certs expire every 90 days and need a renewal job — see
+`nginx/certs/README.txt`). Those are real, substantial topics of their
+own, deliberately out of scope for a single stage.
+
 ## Architecture
-
-
 
 The `users` app follows ports & adapters:
 

@@ -1,0 +1,36 @@
+# --- deps: install once, cached separately from source changes ---
+FROM node:20-slim AS deps
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# --- builder: compile the production bundle ---
+FROM node:20-slim AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# Baked in at build time, not runtime - Next.js inlines NEXT_PUBLIC_*
+# vars into the client bundle during `next build`, so it has to be
+# present *before* this step, unlike backend env vars which are read at
+# container start.
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+RUN npm run build
+
+# --- runner: the actual production image, no build tooling or full node_modules ---
+FROM node:20-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+# `output: "standalone"` (next.config.js) traces only the files actually
+# needed at runtime into .next/standalone - this is what makes this final
+# image dramatically smaller than copying the whole project + node_modules.
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+EXPOSE 3000
+CMD ["node", "server.js"]

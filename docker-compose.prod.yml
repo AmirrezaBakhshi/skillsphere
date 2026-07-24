@@ -1,0 +1,122 @@
+version: "3.9"
+
+# Production overlay. Key differences from docker-compose.yml (dev):
+# - Nginx is the only service publishing ports to the host (80/443).
+#   Everything else is reachable only on the internal Docker network -
+#   see DOCUMENTATION_STAGE6.md section 1 for why this matters.
+# - No source-code bind mounts (dev's live-reload volumes are gone) -
+#   what's in the built image is what runs, same as a real deployment.
+# - Backend runs entrypoint.prod.sh (migrate + collectstatic + Daphne)
+#   instead of dev's runserver-based entrypoint.sh.
+# - Frontend is built via Dockerfile.prod's multi-stage build (a compiled
+#   `next build` served by `node server.js`), not `next dev`.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml --env-file backend/.env.prod up --build
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: skillsphere
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set a real password in backend/.env.prod}
+      POSTGRES_DB: skillsphere
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skillsphere"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.23
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    entrypoint: ["./entrypoint.prod.sh"]
+    env_file: ./backend/.env.prod
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      DATABASE_URL: postgres://skillsphere:${POSTGRES_PASSWORD:?set a real password in backend/.env.prod}@db:5432/skillsphere
+      REDIS_URL: redis://redis:6379/0
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    volumes:
+      - static_files:/app/staticfiles
+      - media_files:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+    restart: unless-stopped
+
+  celery_worker:
+    build: ./backend
+    entrypoint: []
+    command: sh -c "python3 manage.py migrate --noinput && celery -A config worker -l info"
+    env_file: ./backend/.env.prod
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      DATABASE_URL: postgres://skillsphere:${POSTGRES_PASSWORD:?set a real password in backend/.env.prod}@db:5432/skillsphere
+      REDIS_URL: redis://redis:6379/0
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    volumes:
+      - media_files:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?set your public API URL in backend/.env.prod}
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/proxy_params.conf:/etc/nginx/proxy_params.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - static_files:/app/staticfiles:ro
+      - media_files:/app/media:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  es_data:
+  static_files:
+  media_files:

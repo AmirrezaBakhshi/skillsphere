@@ -14,6 +14,10 @@ npm-debug.log*
 # Env
 .env
 .env.local
+.env.prod
+
+# TLS certs (Stage 6) - never commit real certificates/keys
+nginx/certs/
 
 # OS
 .DS_Store
