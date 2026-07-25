@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthSidePanel } from "@/components/AuthSidePanel";
+import { PasswordInput } from "@/components/PasswordInput";
 import { login } from "@/lib/auth";
 import { useAuthStore } from "@/store/authStore";
 
@@ -58,14 +59,11 @@ export default function LoginPage() {
               <label htmlFor="password" className="block text-sm font-medium text-ink">
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
-                required
                 autoComplete="current-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="focus-ring mt-1.5 w-full rounded border border-line px-3 py-2 text-sm"
+                onChange={setPassword}
               />
             </div>
 

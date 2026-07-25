@@ -19,6 +19,14 @@ DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
 INSTALLED_APPS = [
+    # 'daphne' must be listed first, and specifically before
+    # django.contrib.staticfiles - this is what makes Django's own
+    # `runserver` command become ASGI/WebSocket-capable (serving through
+    # Daphne under the hood) instead of silently 404ing every request to
+    # /ws/... . Required by Channels 3.x/4.x; this was missing, which is
+    # why chat didn't work when running locally via `manage.py runserver`
+    # (including inside `docker compose up`, dev's default backend command).
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",

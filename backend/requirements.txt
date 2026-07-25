@@ -16,3 +16,5 @@ whitenoise==6.7.0
 pytest==8.2.0
 pytest-django==4.8.0
 pytest-asyncio==0.23.7
+requests==2.32.3
+Pillow==11.3.0
