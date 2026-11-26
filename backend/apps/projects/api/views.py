@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django.conf import settings
 from django.db.models import F
 from django.http import FileResponse
@@ -73,7 +75,19 @@ class ProjectDownloadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, project_id):
+        # Keep file delivery behind this authenticated, owner-scoped
+        # endpoint. User uploads must never be served from a public
+        # MEDIA_URL/Nginx alias that bypasses this authorization check.
         service = GetProjectForDownloadService(repository=_repository)
         file_path = service.get_file_path(project_id=project_id, owner_id=request.user.id)
         Project.objects.filter(id=project_id).update(download_count=F("download_count") + 1)
-        return FileResponse(open(file_path, "rb"), as_attachment=True)
+
+        response = FileResponse(
+            open(file_path, "rb"),
+            as_attachment=True,
+            filename=Path(file_path).name,
+            content_type="application/octet-stream",
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
