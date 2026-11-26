@@ -44,6 +44,9 @@ class GoogleAuthenticationService:
     repository: UserRepository
 
     def authenticate_or_register(self, *, email: str, google_sub: str, username_hint: str) -> UserEntity:
-        return self.repository.get_or_create_from_google(
+        user = self.repository.get_or_create_from_google(
             email=email, google_sub=google_sub, username_hint=username_hint
         )
+        if not user.is_active:
+            raise InvalidCredentialsError("This account is inactive")
+        return user
