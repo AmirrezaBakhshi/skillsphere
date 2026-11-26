@@ -104,3 +104,19 @@ async def test_empty_message_returns_error_not_broadcast():
 
     assert response["type"] == "error"
     await communicator.disconnect()
+
+
+@pytest.mark.django_db(transaction=True)
+async def test_inactive_user_cannot_open_websocket():
+    user_id, access_token = await _register("inactive@example.com", "inactive")
+    await database_sync_to_async(
+        lambda: __import__(
+            "apps.users.infrastructure.django.models", fromlist=["User"]
+        ).User.objects.filter(id=user_id).update(is_active=False)
+    )()
+
+    communicator = WebsocketCommunicator(
+        application, f"/ws/chat/00000000-0000-0000-0000-000000000000/?token={access_token}"
+    )
+    connected, _ = await communicator.connect()
+    assert connected is False
