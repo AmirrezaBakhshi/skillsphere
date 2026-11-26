@@ -10,6 +10,14 @@ from apps.chat.infrastructure.channels.routing import websocket_urlpatterns
 application = JWTAuthMiddlewareStack(URLRouter(websocket_urlpatterns))
 
 
+
+@database_sync_to_async
+def _deactivate_user(user_id):
+    from apps.users.infrastructure.django.models import User
+
+    User.objects.filter(id=user_id).update(is_active=False)
+
+
 def _register_sync(email, username):
     client = APIClient()
     response = client.post(
@@ -109,11 +117,7 @@ async def test_empty_message_returns_error_not_broadcast():
 @pytest.mark.django_db(transaction=True)
 async def test_inactive_user_cannot_open_websocket():
     user_id, access_token = await _register("inactive@example.com", "inactive")
-    await database_sync_to_async(
-        lambda: __import__(
-            "apps.users.infrastructure.django.models", fromlist=["User"]
-        ).User.objects.filter(id=user_id).update(is_active=False)
-    )()
+    await _deactivate_user(user_id)
 
     communicator = WebsocketCommunicator(
         application, f"/ws/chat/00000000-0000-0000-0000-000000000000/?token={access_token}"
