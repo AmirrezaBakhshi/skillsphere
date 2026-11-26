@@ -115,7 +115,9 @@ class RefreshView(APIView):
         # BLACKLIST_AFTER_ROTATION are applied together. Manually changing
         # the token JTI/expiry does not revoke the token presented by the client.
         serializer = TokenRefreshSerializer(data={"refresh": raw_refresh})
-        if not serializer.is_valid():
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError:
             return Response(
                 {"detail": "Refresh token invalid or expired"},
                 status=401,
