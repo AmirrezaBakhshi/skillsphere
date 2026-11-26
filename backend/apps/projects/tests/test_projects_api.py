@@ -71,3 +71,24 @@ def test_download_requires_ownership(authed_client):
 
     response = authed_client.get(f"/api/v1/projects/{uuid.uuid4()}/download/")
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("filename", "content", "content_type"),
+    [
+        ("fake.pdf", b"MZ\\x90\\x00not a PDF", "application/pdf"),
+        ("fake.png", b"\\xff\\xd8\\xffnot a PNG", "image/png"),
+        ("fake.zip", b"not a ZIP archive", "application/zip"),
+    ],
+)
+def test_upload_rejects_content_type_spoofing(authed_client, filename, content, content_type):
+    file = SimpleUploadedFile(filename, content, content_type=content_type)
+
+    response = authed_client.post(
+        "/api/v1/projects/upload/",
+        {"title": "Spoofed upload", "file": file},
+        format="multipart",
+    )
+
+    assert response.status_code == 422
