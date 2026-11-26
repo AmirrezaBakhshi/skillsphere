@@ -130,3 +130,49 @@ def test_refresh_rejects_malformed_cookie(client):
     response = client.post("/api/v1/auth/refresh/")
     assert response.status_code == 401
     assert "ss_refresh_token" not in response.cookies
+
+
+@pytest.mark.django_db
+def test_google_login_rejects_inactive_existing_account(client, monkeypatch):
+    from apps.users.infrastructure.django.models import User
+    from apps.users.infrastructure.django.google_oauth import GoogleProfile
+
+    user = User.objects.create_user(
+        email="inactive-google@example.com",
+        username="inactive-google",
+        password="S3curePass!23",
+        is_active=False,
+    )
+    monkeypatch.setattr(
+        "apps.users.api.views.verify_google_id_token",
+        lambda token: GoogleProfile(
+            sub="google-sub-inactive", email=user.email, email_verified=True
+        ),
+    )
+
+    response = client.post(
+        "/api/v1/auth/google/",
+        {"id_token": "test-token"},
+        format="json",
+    )
+
+    assert response.status_code == 401
+    assert "ss_refresh_token" not in response.cookies
+
+
+@pytest.mark.django_db
+def test_google_login_rejects_unverified_email_claim(client, monkeypatch):
+    from rest_framework.exceptions import AuthenticationFailed
+    from apps.users.infrastructure.django.google_oauth import verify_google_id_token
+
+    monkeypatch.setattr(
+        "apps.users.infrastructure.django.google_oauth.google_id_token.verify_oauth2_token",
+        lambda *args, **kwargs: {
+            "sub": "google-sub-unverified",
+            "email": "unverified@example.com",
+            "email_verified": False,
+        },
+    )
+
+    with pytest.raises(AuthenticationFailed):
+        verify_google_id_token("test-token")
