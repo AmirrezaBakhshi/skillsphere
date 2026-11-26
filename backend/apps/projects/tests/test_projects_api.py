@@ -54,7 +54,7 @@ def test_upload_rejects_oversized_file(authed_client, settings):
 
 @pytest.mark.django_db
 def test_list_mine_only_shows_own_projects(authed_client):
-    file = SimpleUploadedFile("a.pdf", b"content", content_type="application/pdf")
+    file = SimpleUploadedFile("a.pdf", b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF", content_type="application/pdf")
     authed_client.post(
         "/api/v1/projects/upload/", {"title": "A", "file": file}, format="multipart"
     )
@@ -71,3 +71,24 @@ def test_download_requires_ownership(authed_client):
 
     response = authed_client.get(f"/api/v1/projects/{uuid.uuid4()}/download/")
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("filename", "content", "content_type"),
+    [
+        ("fake.pdf", b"MZ\\x90\\x00not a PDF", "application/pdf"),
+        ("fake.png", b"\\xff\\xd8\\xffnot a PNG", "image/png"),
+        ("fake.zip", b"not a ZIP archive", "application/zip"),
+    ],
+)
+def test_upload_rejects_content_type_spoofing(authed_client, filename, content, content_type):
+    file = SimpleUploadedFile(filename, content, content_type=content_type)
+
+    response = authed_client.post(
+        "/api/v1/projects/upload/",
+        {"title": "Spoofed upload", "file": file},
+        format="multipart",
+    )
+
+    assert response.status_code == 422

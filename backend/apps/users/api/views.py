@@ -3,6 +3,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.users.api.serializers import (
@@ -110,20 +111,28 @@ class RefreshView(APIView):
         if not raw_refresh:
             return Response({"detail": "Refresh cookie missing"}, status=401)
 
+        # Use SimpleJWT's canonical refresh serializer so rotation and
+        # BLACKLIST_AFTER_ROTATION are applied together. Manually changing
+        # the token JTI/expiry does not revoke the token presented by the client.
+        serializer = TokenRefreshSerializer(data={"refresh": raw_refresh})
         try:
-            refresh = RefreshToken(raw_refresh)
-            new_access = str(refresh.access_token)
+            serializer.is_valid(raise_exception=True)
         except TokenError:
-            return Response({"detail": "Refresh token invalid or expired"}, status=401)
+            return Response(
+                {"detail": "Refresh token invalid or expired"},
+                status=401,
+            )
 
-        response = Response({"access": new_access})
+        token_data = serializer.validated_data
+        response = Response({"access": token_data["access"]})
 
-        if settings.SIMPLE_JWT["ROTATE_REFRESH_TOKENS"]:
-            refresh.set_jti()
-            refresh.set_exp()
+        # When rotation is enabled SimpleJWT returns a replacement refresh
+        # token after blacklisting the previous one.
+        replacement_refresh = token_data.get("refresh")
+        if replacement_refresh:
             response.set_cookie(
                 key=settings.JWT_REFRESH_COOKIE_NAME,
-                value=str(refresh),
+                value=replacement_refresh,
                 httponly=True,
                 secure=not settings.DEBUG,
                 samesite="Lax",

@@ -13,7 +13,10 @@ def _get_user_from_access_token(raw_token: str):
 
     try:
         validated = AccessToken(raw_token)
-        return User.objects.get(id=validated["user_id"])
+        user = User.objects.get(id=validated["user_id"])
+        if not user.is_active:
+            return AnonymousUser()
+        return user
     except (TokenError, InvalidToken, User.DoesNotExist):
         return AnonymousUser()
 

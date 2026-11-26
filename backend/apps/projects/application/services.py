@@ -17,6 +17,31 @@ DEFAULT_ALLOWED_CONTENT_TYPES = (
 )
 DEFAULT_MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
 
+# Validate file signatures instead of trusting the client-controlled multipart
+# Content-Type header. This is format identification, not malware scanning.
+_FILE_SIGNATURES = {
+    "application/pdf": lambda header: header.startswith(b"%PDF-"),
+    "application/zip": lambda header: header.startswith((b"PK\\x03\\x04", b"PK\\x05\\x06", b"PK\\x07\\x08")),
+    "application/x-zip-compressed": lambda header: header.startswith((b"PK\\x03\\x04", b"PK\\x05\\x06", b"PK\\x07\\x08")),
+    "image/png": lambda header: header.startswith(b"\\x89PNG\\r\\n\\x1a\\n"),
+    "image/jpeg": lambda header: header.startswith(b"\\xff\\xd8\\xff"),
+}
+
+
+def _matches_declared_content_type(file: BinaryIO, content_type: str) -> bool:
+    signature_check = _FILE_SIGNATURES.get(content_type)
+    if signature_check is None:
+        return False
+
+    try:
+        file.seek(0)
+        header = file.read(8)
+    finally:
+        file.seek(0)
+
+    return signature_check(header)
+
+
 
 @dataclass
 class UploadProjectService:
@@ -49,6 +74,10 @@ class UploadProjectService:
             )
         if content_type not in self.allowed_content_types:
             raise InvalidFileError(f"Content type '{content_type}' is not allowed")
+        if not _matches_declared_content_type(file, content_type):
+            raise InvalidFileError(
+                f"File content does not match the declared content type '{content_type}'"
+            )
 
         return self.repository.create(
             owner_id=owner_id,
