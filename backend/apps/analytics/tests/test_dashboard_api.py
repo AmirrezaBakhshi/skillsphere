@@ -4,7 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 @pytest.mark.django_db
 def test_user_dashboard_reflects_uploaded_projects(authed_client):
-    file = SimpleUploadedFile("notes.pdf", b"content", content_type="application/pdf")
+    file = SimpleUploadedFile("notes.pdf", b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF", content_type="application/pdf")
     authed_client.post(
         "/api/v1/projects/upload/", {"title": "Notes", "file": file}, format="multipart"
     )
@@ -20,7 +20,7 @@ def test_user_dashboard_reflects_uploaded_projects(authed_client):
 
 @pytest.mark.django_db
 def test_user_dashboard_counts_downloads(authed_client):
-    file = SimpleUploadedFile("notes.pdf", b"content", content_type="application/pdf")
+    file = SimpleUploadedFile("notes.pdf", b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF", content_type="application/pdf")
     upload = authed_client.post(
         "/api/v1/projects/upload/", {"title": "Notes", "file": file}, format="multipart"
     )
