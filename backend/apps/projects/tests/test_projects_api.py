@@ -54,7 +54,7 @@ def test_upload_rejects_oversized_file(authed_client, settings):
 
 @pytest.mark.django_db
 def test_list_mine_only_shows_own_projects(authed_client):
-    file = SimpleUploadedFile("a.pdf", b"content", content_type="application/pdf")
+    file = SimpleUploadedFile("a.pdf", b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF", content_type="application/pdf")
     authed_client.post(
         "/api/v1/projects/upload/", {"title": "A", "file": file}, format="multipart"
     )
